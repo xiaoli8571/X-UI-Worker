@@ -10,9 +10,6 @@
     "PROXY_USER": "xui",
     "PROXY_PASS": "xui"
   },
-  "compatibility_flags": [
-    "assets_navigation_prefer_worker"
-  ],
   "assets": {
     "directory": "static",
     "binding": "ASSETS",
