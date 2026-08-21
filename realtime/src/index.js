@@ -534,6 +534,7 @@ export class DashboardHub extends DurableObject {
   async snapshot() {
     if (this.snapshotCache && Date.now() - this.snapshotCachedAt < SNAPSHOT_CACHE_MS) return this.snapshotCache;
     const servers = (await this.env.DB.prepare("SELECT ip, cpu, mem, disk, load, uptime, net_in_speed, net_out_speed, tcp_conn, udp_conn, last_report FROM servers").all()).results || [];
+    const residentialIps = new Set((await this.env.DB.prepare("SELECT ip FROM servers WHERE egress_mode = 'residential'").all()).results.map(r => r.ip));
     const proxies = (await this.env.DB.prepare("SELECT ip, details, last_seen FROM proxy_ctrl_servers").all()).results || [];
     const proxyMap = new Map(proxies.map(row => [row.ip, row]));
     const snapshots = await Promise.all(servers.slice(0, 100).map(async row => {
@@ -543,8 +544,11 @@ export class DashboardHub extends DurableObject {
       const presence = this.env.VPS_PRESENCE.get(this.env.VPS_PRESENCE.idFromName(name));
       const response = await presence.fetch(new Request("https://presence.internal/snapshot"));
       const live = response.ok ? await response.json() : null;
-      if (live?.ip && (live.core || live.proxy)) return live;
-      const proxy = proxyMap.get(ip);
+      if (live?.ip && (live.core || live.proxy)) {
+        if (!residentialIps.has(ip) && live.proxy) delete live.proxy;
+        return live;
+      }
+      const proxy = residentialIps.has(ip) ? proxyMap.get(ip) : null;
       let details = [];
       try { details = JSON.parse(proxy?.details || "[]"); } catch {}
       return {

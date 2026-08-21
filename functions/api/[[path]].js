@@ -888,7 +888,9 @@ async function proxyLocal(method, subPath, req, env, body = null) {
     if (subPath === 'pool' && method === 'GET') {
         const cutoff = Date.now() - 1800000;
         const { results } = await db.prepare('SELECT ip, details, last_seen FROM proxy_ctrl_servers WHERE last_seen >= ? ORDER BY last_seen DESC').bind(cutoff).all();
-        return Response.json(results || []);
+        const residentialIps = new Set((await db.prepare("SELECT ip FROM servers WHERE egress_mode = 'residential'").all()).results.map(r => r.ip));
+        const filtered = (results || []).filter(server => residentialIps.has(server.ip));
+        return Response.json(filtered || []);
     }
 
     if (subPath === 'switch' && method === 'POST') {
@@ -923,9 +925,11 @@ async function proxyLocal(method, subPath, req, env, body = null) {
     if (subPath === 'proxies' && method === 'GET') {
         const cutoff = Date.now() - 1800000;
         const { results } = await db.prepare('SELECT ip, details FROM proxy_ctrl_servers WHERE last_seen >= ?').bind(cutoff).all();
+        const residentialIps = new Set((await db.prepare("SELECT ip FROM servers WHERE egress_mode = 'residential'").all()).results.map(r => r.ip));
         const list = [];
         if (results) {
             for (const s of results) {
+                if (!residentialIps.has(s.ip)) continue;
                 const details = JSON.parse(s.details || '[]');
                 const node = details.find(d => d.active) || details[0];
                 if (node) list.push(`socks5://${proxyUser}:${proxyPass}@${s.ip}:${node.port}#${node.country}_ActiveNode_${node.node_ip || 'IP'}`);
@@ -938,7 +942,9 @@ async function proxyLocal(method, subPath, req, env, body = null) {
     if (subPath === 'nodes' && method === 'GET') {
         const cutoff = Date.now() - 1800000;
         const { results } = await db.prepare(`SELECT s.ip, s.details, s.last_seen, l.logs FROM proxy_ctrl_servers s LEFT JOIN server_logs l ON s.ip = l.ip WHERE s.last_seen >= ? ORDER BY s.last_seen DESC`).bind(cutoff).all();
-        return new Response(JSON.stringify(results || []), { headers: { 'Content-Type': 'application/json' } });
+        const residentialIps = new Set((await db.prepare("SELECT ip FROM servers WHERE egress_mode = 'residential'").all()).results.map(r => r.ip));
+        const filtered = (results || []).filter(server => residentialIps.has(server.ip));
+        return new Response(JSON.stringify(filtered || []), { headers: { 'Content-Type': 'application/json' } });
     }
 
     if (subPath === 'countries' && method === 'GET') {

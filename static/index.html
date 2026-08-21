@@ -1343,7 +1343,7 @@ body.theme11 #app, body.theme13 #app, body.theme14 #app, body.theme15 #app, body
                     if (!authKey.value || !currentUser.value || role.value !== 'admin') return {};
                     return { 'Authorization': `Bearer ${authKey.value}` };
                 };
-                window.xuiManagedServerIps = () => servers.value.map(server => server.ip).filter(Boolean);
+                window.xuiManagedServerIps = () => servers.value.filter(server => server.egress_mode === 'residential').map(server => server.ip).filter(Boolean);
 
                 const login = async () => {
                     if (!loginUser.value) loginUser.value = 'admin';
@@ -1904,8 +1904,8 @@ body.theme11 #app, body.theme13 #app, body.theme14 #app, body.theme15 #app, body
                 };
 
                 const saveProxyConfig = async () => {
-                    const targets = proxyConfig.ip ? [proxyConfig.ip] : (servers.value || []).map(s => s.ip);
-                    if (targets.length === 0) { alert('⚠️ 暂无可下发的 VPS，请先在「服务器与节点」接入机器。'); return; }
+                    const targets = proxyConfig.ip ? [proxyConfig.ip] : (servers.value || []).filter(s => s.egress_mode === 'residential').map(s => s.ip);
+                    if (targets.length === 0) { alert('⚠️ 暂无可下发的 VPS，请先在「服务器与节点」为 VPS 选择“住宅 IP 代理”出口。'); return; }
                     try {
                         for (const ip of targets) {
                             await fetchApi('/api/proxy/config', {
