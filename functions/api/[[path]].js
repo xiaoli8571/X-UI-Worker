@@ -111,10 +111,10 @@ async function notifyRealtimePublicPolicy(env, db, enabled, pagesOrigin = '') {
 }
 
 function realtimeFrequencyPolicy(settings = {}) {
-    const admin = Number(settings.realtime_admin_interval || 5);
-    const publicInterval = Number(settings.realtime_public_interval || 10);
-    const idle = Number(settings.realtime_idle_interval || 30);
-    if (!Number.isInteger(admin) || !Number.isInteger(publicInterval) || !Number.isInteger(idle) || admin < 5 || admin > 60 || publicInterval < 10 || publicInterval > 120 || idle < 30 || idle > 600 || publicInterval < admin || idle < publicInterval) return null;
+    const admin = Number(settings.realtime_admin_interval || 30);
+    const publicInterval = Number(settings.realtime_public_interval || 30);
+    const idle = Number(settings.realtime_idle_interval || 60);
+    if (!Number.isInteger(admin) || !Number.isInteger(publicInterval) || !Number.isInteger(idle) || admin < 10 || admin > 120 || publicInterval < 10 || publicInterval > 120 || idle < 30 || idle > 600 || publicInterval < admin || idle < publicInterval) return null;
     return { admin, public: publicInterval, idle };
 }
 
@@ -713,7 +713,7 @@ async function handleProbeAPI(request, env, context, pathArray) {
         const cacheKey = new Request(`${url.origin}/api/probe/public?ajax=${isAjax ? '1' : '0'}`);
         const cached = await caches.default.match(cacheKey);
         if (cached) return cached;
-        const settings = { theme: 'theme1', is_public: 'true', site_title: '⚡ Server Monitor Pro', show_price: 'true', show_expire: 'true', show_bw: 'true', show_tf: 'true', custom_css: '', custom_bg: '', custom_head: '', custom_script: '', report_interval: '5', enable_popup: 'false', popup_content: '', cached_nodes_data: '' };
+        const settings = { theme: 'theme1', is_public: 'true', site_title: '⚡ Server Monitor Pro', show_price: 'true', show_expire: 'true', show_bw: 'true', show_tf: 'true', custom_css: '', custom_bg: '', custom_head: '', custom_script: '', report_interval: '60', enable_popup: 'false', popup_content: '', cached_nodes_data: '' };
         try { const { results } = await db.prepare('SELECT * FROM probe_settings').all(); if (results) results.forEach(r => settings[r.key] = r.value); } catch(e){}
         const authHeader = request.headers.get("Authorization");
         const isLoggedIn = await verifyAuth(authHeader, request, db, env, context);

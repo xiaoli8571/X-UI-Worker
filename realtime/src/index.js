@@ -2,8 +2,8 @@ import { DurableObject } from "cloudflare:workers";
 
 // Admins need the fastest updates. Public monitoring remains responsive at
 // ten seconds, while no viewers reduces routine status work to thirty seconds.
-const ADMIN_STATUS_INTERVAL = 15_000;
-const PUBLIC_STATUS_INTERVAL = 20_000;
+const ADMIN_STATUS_INTERVAL = 30_000;
+const PUBLIC_STATUS_INTERVAL = 30_000;
 const IDLE_STATUS_INTERVAL = 60_000;
 const STATUS_STALE_AFTER = 20_000;
 const VIEWER_LEASE_MS = 90_000;
@@ -18,7 +18,7 @@ function validFrequencyPolicy(value) {
   const admin = Number(value?.admin);
   const publicInterval = Number(value?.public);
   const idle = Number(value?.idle);
-  if (!Number.isInteger(admin) || !Number.isInteger(publicInterval) || !Number.isInteger(idle) || admin < 5 || admin > 60 || publicInterval < 10 || publicInterval > 120 || idle < 30 || idle > 600 || publicInterval < admin || idle < publicInterval) return null;
+  if (!Number.isInteger(admin) || !Number.isInteger(publicInterval) || !Number.isInteger(idle) || admin < 10 || admin > 120 || publicInterval < 10 || publicInterval > 120 || idle < 30 || idle > 600 || publicInterval < admin || idle < publicInterval) return null;
   return { admin: admin * 1000, public: publicInterval * 1000, idle: idle * 1000 };
 }
 

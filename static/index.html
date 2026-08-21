@@ -872,9 +872,9 @@
                         <h3 class="text-xl font-black text-slate-800 mb-2 flex items-center gap-2">⚡ Realtime 状态频率策略</h3>
                         <p class="text-xs text-slate-500 mb-5 font-medium">全局影响所有 VPS 的 Core 与 Proxy Agent。节点配置、出口切换、应用结果、上线和掉线仍会立即推送。</p>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div><label class="block text-xs font-bold text-slate-500 mb-1">管理员后台查看 (秒)</label><input type="number" v-model.number="probeSys.realtime_admin_interval" min="5" max="60" step="1" class="w-full bg-white/50 border p-2.5 rounded-xl text-sm font-medium text-slate-700"><p class="mt-1 text-[10px] text-slate-400">范围 5-60 秒，默认 5 秒</p></div>
-                            <div><label class="block text-xs font-bold text-slate-500 mb-1">公开探针查看 (秒)</label><input type="number" v-model.number="probeSys.realtime_public_interval" min="10" max="120" step="1" class="w-full bg-white/50 border p-2.5 rounded-xl text-sm font-medium text-slate-700"><p class="mt-1 text-[10px] text-slate-400">范围 10-120 秒，默认 10 秒</p></div>
-                            <div><label class="block text-xs font-bold text-slate-500 mb-1">无人查看空闲 (秒)</label><input type="number" v-model.number="probeSys.realtime_idle_interval" min="30" max="600" step="1" class="w-full bg-white/50 border p-2.5 rounded-xl text-sm font-medium text-slate-700"><p class="mt-1 text-[10px] text-slate-400">范围 30-600 秒，默认 30 秒</p></div>
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">管理员后台查看 (秒)</label><input type="number" v-model.number="probeSys.realtime_admin_interval" min="10" max="120" step="5" class="w-full bg-white/50 border p-2.5 rounded-xl text-sm font-medium text-slate-700"><p class="mt-1 text-[10px] text-slate-400">范围 10-120 秒，默认 30 秒。越大越省 CF 额度</p></div>
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">公开探针查看 (秒)</label><input type="number" v-model.number="probeSys.realtime_public_interval" min="10" max="120" step="5" class="w-full bg-white/50 border p-2.5 rounded-xl text-sm font-medium text-slate-700"><p class="mt-1 text-[10px] text-slate-400">范围 10-120 秒，默认 30 秒。越大越省 CF 额度</p></div>
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">无人查看空闲 (秒)</label><input type="number" v-model.number="probeSys.realtime_idle_interval" min="30" max="600" step="30" class="w-full bg-white/50 border p-2.5 rounded-xl text-sm font-medium text-slate-700"><p class="mt-1 text-[10px] text-slate-400">范围 30-600 秒，默认 60 秒。越大越省 CF 额度</p></div>
                         </div>
                         <p class="mt-4 text-[10px] font-medium text-amber-600">要求：公开探针频率不得快于管理员后台；空闲频率不得快于公开探针。修改后点击下方“立即生效配置”。</p>
                     </div>
@@ -1144,7 +1144,7 @@
                 ]);
                 const pingNodes = reactive({ ct: [], cu: [], cm: [] });
 
-                const probeSys = reactive({ theme: 'theme1', is_public: 'true', site_title: 'Server Monitor Pro', custom_bg: '', custom_css: '', custom_head: '', custom_script: '', report_interval: '5', realtime_admin_interval: '5', realtime_public_interval: '10', realtime_idle_interval: '30', visits_total: '0', visits_today: '0', ping_node_ct: 'default', ping_node_cu: 'default', ping_node_cm: 'default', enable_popup: 'false', popup_content: '', tg_notify: 'false', tg_bot_token: '', tg_chat_id: '' });
+                const probeSys = reactive({ theme: 'theme1', is_public: 'true', site_title: 'Server Monitor Pro', custom_bg: '', custom_css: '', custom_head: '', custom_script: '', report_interval: '60', realtime_admin_interval: '30', realtime_public_interval: '30', realtime_idle_interval: '60', visits_total: '0', visits_today: '0', ping_node_ct: 'default', ping_node_cu: 'default', ping_node_cm: 'default', enable_popup: 'false', popup_content: '', tg_notify: 'false', tg_bot_token: '', tg_chat_id: '' });
                 const FALLBACK_DATA_INTERVAL = 15000;
                 const FALLBACK_PROBE_INTERVAL = 30000;
                 const FALLBACK_UI_PING_INTERVAL = 60000;
