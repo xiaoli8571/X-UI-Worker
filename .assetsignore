@@ -12,3 +12,5 @@ functions/
 src/
 realtime/
 node_modules/
+__pycache__/
+*.pyc
