@@ -1678,9 +1678,10 @@ rules:
         if (action === "vps" && isAdmin) {
             await ensureDbSchema(db);
             if (method === "GET" && params.path[1] === "export") {
-                const { results } = await db.prepare("SELECT ip, name, agent_token, sort_order, egress_mode, proxy_mode, proxy_categories, socks5_addr, socks5_port, socks5_user, socks5_pass FROM servers ORDER BY sort_order, name").all();
+                const { results } = await db.prepare("SELECT ip, name, sort_order FROM servers ORDER BY sort_order, name").all();
+                const data = (results || []).map(r => ({ name: r.name || r.ip, ip: r.ip }));
                 const stamp = new Date().toISOString().slice(0, 10);
-                return Response.json({ vps: results || [] }, { headers: { "Content-Disposition": `attachment; filename="xui-vps-${stamp}.json"`, "Cache-Control": "no-store" } });
+                return Response.json(data, { headers: { "Content-Disposition": `attachment; filename="xui-vps-${stamp}.json"`, "Cache-Control": "no-store" } });
             }
             if (method === "POST" && params.path[1] === "import") {
                 let list;
@@ -1692,7 +1693,8 @@ rules:
                 if (Array.isArray(list) && list[0] && list[0].vps) list = list[0].vps;
                 if (!Array.isArray(list)) {
                     if (list && Array.isArray(list.vps)) list = list.vps;
-                    else return Response.json({ error: '导入内容需为 {vps: [...]} 或 VPS 数组' }, { status: 400 });
+                    else if (list && Array.isArray(list.servers)) list = list.servers;
+                    else return Response.json({ error: '导入内容需为 [{name, ip}, ...] 数组 或 {vps/servers: [...]}' }, { status: 400 });
                 }
                 if (list.length > 100) return Response.json({ error: '单次最多导入 100 台 VPS' }, { status: 400 });
                 const existing = new Set((await db.prepare("SELECT ip FROM servers").all()).results.map(r => r.ip));
@@ -1703,9 +1705,9 @@ rules:
                     if (!/^[0-9A-Fa-f:.]{2,64}$/.test(ip) || existing.has(ip)) continue;
                     existing.add(ip);
                     const name = String(item.name || ip).slice(0, 100);
-                    const agentToken = String(item.agent_token || crypto.randomUUID()).slice(0, 64);
+                    const agentToken = crypto.randomUUID();
                     const sortOrder = Number(item.sort_order) || 0;
-                    statements.push(db.prepare(`INSERT INTO servers (ip, name, agent_token, sort_order) VALUES (?, ?, ?, ?)`).bind(ip, name, agentToken, sortOrder));
+                    statements.push(db.prepare(`INSERT INTO servers (ip, name, agent_token, alert_sent, sort_order) VALUES (?, ?, ?, 0, ?)`).bind(ip, name, agentToken, sortOrder));
                     imported++;
                 }
                 if (statements.length) await chunkBatch(db, statements);

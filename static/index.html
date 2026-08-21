@@ -415,6 +415,11 @@
                     <div class="flex-1"><label class="block text-xs font-bold text-slate-400 mb-2 pl-2">公网 IP</label><input v-model="newVps.ip" placeholder="8.8.8.8" class="w-full bg-white/50 border border-white p-3 rounded-2xl transition hover:bg-white focus:bg-white"></div>
                     <div class="w-full md:w-48"><label class="block text-xs font-bold text-slate-400 mb-2 pl-2">系统架构</label><select v-model="newVps.os" class="w-full bg-white/50 border border-white p-3 rounded-2xl transition hover:bg-white focus:bg-white outline-none font-medium text-slate-700"><option value="debian">Ubuntu / Debian</option><option value="alpine">Alpine Linux</option></select></div>
                     <button @click="addVps" class="bg-slate-800 text-white px-8 py-3.5 rounded-2xl font-bold hover:bg-black transition-all shadow-lg hover:scale-105 whitespace-nowrap">接入机器</button>
+                    <div class="flex gap-2">
+                        <button @click="exportVps" title="导出全部 VPS（名称+IP）" class="bg-white/70 border border-slate-200 text-slate-600 px-4 py-3.5 rounded-2xl font-bold hover:bg-white transition-all shadow-sm whitespace-nowrap">📤 导出 VPS</button>
+                        <button @click="vpsImportFile?.click()" title="导入 VPS（JSON 或 CSV：每行 名称,IP[,系统]；系统可填 alpine/debian/ubuntu）" class="bg-white/70 border border-slate-200 text-slate-600 px-4 py-3.5 rounded-2xl font-bold hover:bg-white transition-all shadow-sm whitespace-nowrap">📥 导入 VPS</button>
+                        <input ref="vpsImportFile" type="file" accept=".json,.csv,application/json,text/csv" class="hidden" @change="importVpsFile($event)">
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -568,10 +573,7 @@
                             <div class="flex gap-2 mt-1">
                                 <button @click="exportNodes" class="flex-1 text-center bg-white border border-slate-200 text-slate-600 px-3 py-2.5 rounded-xl font-bold hover:bg-white transition-all shadow-sm text-xs whitespace-nowrap">📤 导出节点</button>
                                 <button @click="importNodesPick" class="flex-1 text-center bg-white border border-slate-200 text-slate-600 px-3 py-2.5 rounded-xl font-bold hover:bg-white transition-all shadow-sm text-xs whitespace-nowrap">📥 导入节点</button>
-                                <button @click="exportVps" class="flex-1 text-center bg-white border border-slate-200 text-slate-600 px-3 py-2.5 rounded-xl font-bold hover:bg-white transition-all shadow-sm text-xs whitespace-nowrap">📤 导出VPS</button>
-                                <button @click="importVpsPick" class="flex-1 text-center bg-white border border-slate-200 text-slate-600 px-3 py-2.5 rounded-xl font-bold hover:bg-white transition-all shadow-sm text-xs whitespace-nowrap">📥 导入VPS</button>
                                 <input ref="nodeImportFile" type="file" accept=".json,application/json" class="hidden" @change="importNodesFile($event)">
-                                <input ref="vpsImportFile" type="file" accept=".json,application/json" class="hidden" @change="importVpsFile($event)">
                             </div>
                         </div>
                     </div>
@@ -1711,21 +1713,43 @@ body.theme11 #app, body.theme13 #app, body.theme14 #app, body.theme15 #app, body
                         document.body.appendChild(a);
                         a.click();
                         setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 100);
-                        alert(`✅ 已导出 ${(data.vps || []).length} 台 VPS`);
+                        alert(`✅ 已导出 ${(Array.isArray(data) ? data.length : (data.vps || []).length)} 台 VPS`);
                     } catch (e) { alert('导出失败: ' + (e && e.message || e)); }
                 };
-                const importVpsPick = () => { vpsImportFile.value?.click(); };
+                const parseVpsImport = (text) => {
+                    const trimmed = (text || '').trim();
+                    if (!trimmed) return [];
+                    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+                        let parsed;
+                        try { parsed = JSON.parse(trimmed); }
+                        catch (e) { parsed = JSON.parse(trimmed.replace(/,\s*([}\]])/g, '$1')); }
+                        if (Array.isArray(parsed)) return parsed;
+                        if (parsed && Array.isArray(parsed.vps)) return parsed.vps;
+                        if (parsed && Array.isArray(parsed.servers)) return parsed.servers;
+                        throw new Error('JSON 需为 [{name, ip, os?}, ...] 或 {vps/servers: [...]}');
+                    }
+                    const rows = [];
+                    for (const line of trimmed.split(/\r?\n/)) {
+                        const parts = line.split(/[,，\t]/).map(s => s.trim()).filter(Boolean);
+                        if (!parts.length) continue;
+                        const first = parts[0].toLowerCase();
+                        if (first === 'name' || first === 'ip' || first === '名称' || first === 'ip地址') continue;
+                        if (parts.length >= 2) {
+                            const row = { name: parts[0], ip: parts[1] };
+                            if (parts.length >= 3 && ['alpine', 'debian', 'ubuntu'].includes(parts[2].toLowerCase())) row.os = parts[2].toLowerCase();
+                            rows.push(row);
+                        }
+                        else if (/^[0-9A-Fa-f:.]{2,64}$/.test(parts[0])) rows.push({ name: parts[0], ip: parts[0] });
+                    }
+                    return rows;
+                };
                 const importVpsFile = async (event) => {
                     const file = event.target.files && event.target.files[0];
                     event.target.value = '';
                     if (!file) return;
                     try {
                         const text = await file.text();
-                        let parsed;
-                        try { parsed = JSON.parse(text); }
-                        catch (e) { parsed = JSON.parse(text.replace(/,\s*([}\]])/g, '$1')); }
-                        if (Array.isArray(parsed) && parsed[0] && parsed[0].vps) parsed = parsed[0].vps;
-                        if (!Array.isArray(parsed)) parsed = parsed && parsed.vps;
+                        const parsed = parseVpsImport(text);
                         if (!parsed || !parsed.length) return alert('文件中没有可导入的 VPS 记录');
                         const res = await fetchApi('/api/vps/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parsed) });
                         const r = await res.json();
@@ -1962,7 +1986,7 @@ body.theme11 #app, body.theme13 #app, body.theme14 #app, body.theme15 #app, body
                     globalOnline, globalTraffic, globalSpeedIn, globalSpeedOut, deployOsMap, saveOsMap, siteTitle, siteTitleInput, saveSiteTitle, userNewPassword, updateUserPassword, resetMySubLink, generateUUIDForNewUser, batchStartPort, batchUser, deployAllProtocols,
                     probeSys, publicProbeServers, filteredProbeServers, probeView, probeDetailId, probeDetail, setProbeView, openProbeDetail, probeGlobalOnline, probeGlobalOffline, probeGlobalSpeedIn, probeGlobalSpeedOut, probeGlobalNetRx, probeGlobalNetTx, filteredProbeGroups, probeCountryStats, currentFilter,
                     saveProbeSettings, saveSubscriptionProtection, adminProbeServers, probeEditModalOpen, editingProbeNode, openProbeEditModal, saveProbeEdit, deleteProbeNode, currentDomain,
-                    nodeEditModalOpen, editingNode, editNode, saveNodeEdit, exportNodes, importNodesPick, importNodesFile, nodeImportFile, exportVps, importVpsPick, importVpsFile, vpsImportFile,
+                    nodeEditModalOpen, editingNode, editNode, saveNodeEdit, exportNodes, importNodesPick, importNodesFile, nodeImportFile, exportVps, importVpsFile, vpsImportFile,
                     thirdPartySubscriptions, newThirdParty, loadingThirdParty, loadThirdPartySubscriptions, addThirdPartySubscription, toggleThirdPartySubscription, deleteThirdPartySubscription, newSingleNode, loadingSingleNode, addSingleNode,
                     qrModalOpen, qrCodeImage, showQrCode, 
                     showWelcomePopup, closePopup,
