@@ -771,6 +771,7 @@ async function handleProbeAPI(request, env, context, pathArray) {
             if (!realtimeFrequencyPolicy(frequencySettings)) return Response.json({ error: 'Invalid realtime frequency policy' }, { status: 400 });
         }
         for (const [k, v] of Object.entries(settings)) { await db.prepare('INSERT INTO probe_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind(k, v).run(); }
+        try { await caches.default.delete(new Request(`${url.origin}/api/probe/public?ajax=0`)); await caches.default.delete(new Request(`${url.origin}/api/probe/public?ajax=1`)); } catch (e) {}
         if (Object.prototype.hasOwnProperty.call(settings, 'is_public')) await notifyRealtimePublicPolicy(env, db, settings.is_public === 'true', url.origin).catch(() => {});
         if (frequencyKeys.some(key => Object.prototype.hasOwnProperty.call(settings, key))) await notifyRealtimeFrequencyPolicy(env, db, frequencySettings, url.origin).catch(() => {});
         if (settings.tg_bot_token) {

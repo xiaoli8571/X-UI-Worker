@@ -388,7 +388,6 @@
                         <button @click="activeTab = 'nodes'" :class="activeTab === 'nodes' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="xui-tab-button xui-admin-tab shrink-0 whitespace-nowrap px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 rounded-full font-bold transition-all text-[11px] sm:text-xs lg:text-sm">服务器与节点</button>
                         <button @click="activeTab = 'users'" :class="activeTab === 'users' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="xui-tab-button xui-admin-tab shrink-0 whitespace-nowrap px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 rounded-full font-bold transition-all text-[11px] sm:text-xs lg:text-sm">用户与授权</button>
                         <button @click="activeTab = 'proxy'" :class="activeTab === 'proxy' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="xui-tab-button xui-admin-tab shrink-0 whitespace-nowrap px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 rounded-full font-bold transition-all text-[11px] sm:text-xs lg:text-sm">🌐 住宅IP代理</button>
-                        <button @click="activeTab = 'realm'" :class="activeTab === 'realm' ? 'bg-white text-cyan-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="xui-tab-button xui-admin-tab shrink-0 whitespace-nowrap px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 rounded-full font-bold transition-all text-[11px] sm:text-xs lg:text-sm">🔀 Realm中转</button>
                         <button @click="activeTab = 'thirdparty'" :class="activeTab === 'thirdparty' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="xui-tab-button xui-admin-tab shrink-0 whitespace-nowrap px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 rounded-full font-bold transition-all text-[11px] sm:text-xs lg:text-sm">🔗 第三方订阅</button>
                         <button @click="activeTab = 'settings'" :class="activeTab === 'settings' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="xui-tab-button xui-admin-tab shrink-0 whitespace-nowrap px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 rounded-full font-bold transition-all text-[11px] sm:text-xs lg:text-sm">⚙️ 系统设置</button>
                         <button @click="activeTab = 'probe'; probeDetailId = null;" class="xui-tab-button xui-admin-tab shrink-0 whitespace-nowrap px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 rounded-full font-bold transition-all text-[11px] sm:text-xs lg:text-sm text-emerald-600 hover:bg-emerald-50 shadow-sm border border-transparent hover:border-emerald-200">🌐 探针全景大盘</button>
@@ -619,15 +618,6 @@
                         <div><label class="block text-xs font-bold text-slate-500 mb-2">可用资源</label><select multiple v-model="groupDraft(group).resources" class="w-full h-36 bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none"><optgroup label="整台 VPS（包含该机所有节点）"><option v-for="vps in servers" :key="'vps:'+vps.ip" :value="'vps:'+vps.ip">VPS · {{ vps.name }} ({{ vps.ip }})</option></optgroup><optgroup label="单独节点"><option v-for="node in nodes" :key="'node:'+node.id" :value="'node:'+node.id">节点 · {{ getVpsName(node.vps_ip) }} · {{ node.protocol }}:{{ node.port }}</option></optgroup></select><p class="text-[10px] text-slate-400 mt-1">整机授权与单节点授权可叠加</p></div>
                     </div>
                     <div class="flex justify-end"><button @click="saveGroup(group)" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700">保存授权</button></div>
-                </div>
-            </div>
-
-            <!-- 住宅IP代理控制器 (双活引擎总控 - 已内联) -->
-            <div v-if="isLoggedIn && role === 'admin' && activeTab === 'realm'" class="min-h-[420px] flex items-center justify-center px-4">
-                <div class="w-full max-w-xl bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white shadow-xl shadow-cyan-100/40 p-10 text-center">
-                    <div class="w-16 h-16 mx-auto mb-5 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center text-3xl">🔀</div>
-                    <h3 class="text-2xl font-black text-slate-800">Realm 中转</h3>
-                    <p class="mt-3 text-slate-500 font-medium">未来规划，敬请期待</p>
                 </div>
             </div>
 
