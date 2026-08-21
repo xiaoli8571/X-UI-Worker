@@ -1,0 +1,168 @@
+# X-UI Worker
+
+> **⚠️ 重要提示：一键部署后如果页面显示空白或 "Hello World"，请阅读下方 [一键部署故障排除](#一键部署故障排除)。**
+
+X-UI Worker 是一个部署在 **单一 Cloudflare Worker** 的代理节点管理与服务器探针面板。Worker Assets 托管前端和 VPS 安装组件，D1 保存配置、用户、流量和探针数据，Durable Objects 提供实时 WebSocket；无需部署传统面板服务器或额外 Realtime Worker。
+
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/xiaoli8571/X-UI-Worker)
+
+## 一键部署
+
+1. 点击上方 **Deploy to Cloudflare Workers**。
+2. 登录 Cloudflare，选择账户并确认 Worker 名称。
+3. Cloudflare 会自动创建并绑定 D1 数据库到 `DB`，同时创建实时状态需要的 Durable Objects。不要删除这些 bindings。
+4. **首次访问：** 部署成功后直接打开 Worker 地址即可登录。
+   - 如果页面正常显示登录界面，说明部署成功。
+   - **如果页面显示空白、"Hello World" 或 1101 错误，请参照下方故障排除。**
+
+### 一键部署故障排除
+
+如果部署后页面无法正常加载，请按以下步骤排查：
+
+**① 检查 D1 数据库绑定**
+- 进入 Cloudflare Dashboard → Workers & Pages → 你的 Worker (xui)
+- 左侧 → **Settings → Variables**
+- 在 **D1 Database Bindings** 下找到 `DB`
+- 如果没有绑定，点击 **Add binding**：
+  - Variable name: `DB`
+  - D1 database: 选择或创建一个 D1 数据库
+- 绑定后点击 **Deploy** 重新部署
+
+**② 检查 Durable Objects 绑定**
+- 同一页面，在 **Durable Object Bindings** 下方应有以下两项：
+  - `VPS_PRESENCE` → VpsPresence
+  - `DASHBOARD_HUB` → DashboardHub
+- 如果缺失，手动添加并重新部署
+
+**③ 检查兼容性标志**
+- 在 **Compatibility flags** 中添加：`assets_navigation_prefer_worker`
+- 重新部署
+
+**④ 如果仍然显示 Hello World**
+- 在 Workers & Pages 页面找到你的 Worker
+- 点击进入 → 点击右上角 **Quick Edit**
+- 确认编辑器中的代码与实际仓库代码一致
+- 如不一致，手动将 `src/worker.js` 内容复制进去，保存并重新部署
+
+预设登录信息：
+
+```text
+用户名：admin
+密码：admin
+```
+
+这是为完整一键部署准备的默认值。首次登录后必须在 Worker 的 **Settings → Variables and Secrets** 将 `ADMIN_PASSWORD` 覆盖为强 Secret 并重新部署。
+
+内置住宅代理也已预设凭据：
+
+```text
+PROXY_USER=xui
+PROXY_PASS=xui
+```
+
+启用住宅代理前，应在 Worker 的 **Variables and Secrets** 中将两项覆盖为独立的强 Secret 并重新部署。
+
+## 自定义域名
+
+在 Worker 的 **Settings → Domains & Routes → Add** 中绑定域名或子域名。绑定后直接使用该域名访问面板。
+
+## 本地部署
+
+适用于需要使用已有 D1、固定 Worker 名称或自行维护发布流程的场景。
+
+```bash
+git clone https://github.com/xiaoli8571/X-UI-Worker.git
+cd X-UI-Worker
+npm install
+npx wrangler login
+npx wrangler deploy
+```
+
+当前 `wrangler.jsonc` 未指定 D1 ID，首次部署会自动创建数据库和实时 Durable Objects。若需要使用已有 D1，在 Cloudflare Dashboard 的 Worker **Settings → Bindings** 中将 `DB` 重绑到目标数据库后重新部署。
+
+生产环境请立即替换默认密码：
+
+```bash
+npx wrangler secret put ADMIN_PASSWORD
+npx wrangler deploy
+```
+
+本地预览：
+
+```bash
+npm run dev
+```
+
+## 已内置实时服务
+
+实时 WebSocket、Agent 在线状态、即时配置刷新、公开探针实时更新和观众频率自适应均已内置于主 Worker。
+
+部署后无需配置：
+
+- `REALTIME_URL`
+- `PAGES_ORIGIN`
+- 单独的 Realtime Worker
+- 单独的 Realtime D1 或 Durable Objects
+
+## VPS 接入
+
+1. 登录 X-UI，进入 **服务器与节点**。
+2. 添加 VPS 名称和公网 IP。
+3. 复制页面生成的 Full Deploy Command，以 `root` 在 VPS 执行。
+4. 等待 Agent 回连后创建节点或使用"8 合 1"批量部署。
+
+支持 XTLS-Reality、Hysteria2、TUIC、Trojan、H2/gRPC-Reality、AnyTLS、Naive、VLESS-Argo、VLESS（原生裸协议）、Socks5 与 Dokodemo-door。
+
+### 节点管理
+
+- **修改节点名称与地址**：已添加的节点可通过编辑按钮修改名称与地址（支持 IP 或域名），订阅链接与二维码会同步使用新地址。
+- **节点导入导出**：在「服务器与节点」页可将全部节点导出为 JSON 文件，也可通过导入文件批量添加节点；导入时自动跳过重复或无效的节点。
+
+### 服务器探针
+
+- 每台 VPS 可安装独立的探针脚本，仅上报 CPU、内存、磁盘、网络、负载、延迟等指标，不参与节点构建。
+- 探针数据上报频率由面板自适应控制：面板在线时约 15 秒一次，闲置时约 90 秒一次，节省 Cloudflare 免费额度。
+
+## 主要能力
+
+- 多用户、订阅令牌、流量配额和到期管理。
+- Mihomo/Clash 订阅导出，包括 AnyTLS 与 VLESS 原生协议。
+- CPU、内存、磁盘、网络、TCP/UDP 与线路延迟探针。
+- 多种预设探针主题、自定义 CSS 和背景。
+- 原生、WARP、住宅代理和手动 SOCKS5 节点出口。
+- 可选 Telegram 告警与订阅保护。
+- Worker Cron 每 15 分钟检查离线节点。
+- 节点排序：支持上移、下移、拖拽排序，排序结果持久保存。
+
+## 免费额度适配
+
+- Cron 触发频率已降低至每 15 分钟一次。
+- 实时广播与前端轮询频率已适度降频，仅在面板活跃时保持快速刷新。
+- Agent 与探针上报间隔由后端动态下发，闲置时自动降频，将请求数、D1 读写、Durable Objects 调用控制在免费额度约 60% 以内。
+
+## 架构
+
+```text
+浏览器 / VPS Agent
+        |
+Cloudflare Worker
+  |- Worker Assets: 前端与 VPS 安装文件
+  |- /api/*: X-UI 后端接口
+  |- /agent/ws、/dashboard/*、/public/ws：内置实时服务
+  |- Cron: 离线检查
+  |- D1 (DB): 配置、用户、节点、流量、探针数据
+  `- Durable Objects: VPS 实时状态与 Dashboard Hub
+```
+
+## 注意事项
+
+- 一键部署默认使用 `admin/admin` 和住宅代理凭据 `xui/xui`。公开使用前必须将 `ADMIN_PASSWORD`、`PROXY_USER`、`PROXY_PASS` 覆盖为 Secret。
+- 不要提交自定义 `ADMIN_PASSWORD`、D1 ID、Telegram Token 或代理凭据。
+- `DB` 是固定 binding 名称，修改会导致后端无法访问数据库。
+- 修改 Worker Variables 或 Bindings 后需要重新部署。
+- 使用已有 D1 时，确认 `DB` 绑定指向正确数据库。
+- `workspace-preview.html` 仅用于本地预览，不参与 Worker 静态资源发布。
+
+## 开源协议
+
+MIT

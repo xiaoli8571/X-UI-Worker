@@ -1,0 +1,14 @@
+.git/
+.wrangler/
+.assetsignore
+.gitignore
+README.md
+package.json
+package-lock.json
+wrangler.jsonc
+worker-configuration.d.ts
+workspace-preview.html
+functions/
+src/
+realtime/
+node_modules/

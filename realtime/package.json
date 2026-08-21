@@ -1,0 +1,21 @@
+{
+  "name": "xui-realtime-worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.110.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "DB": {
+        "description": "X-UI Pages 与 Realtime Worker 必须使用同一个生产 D1。全新部署可创建 xui-db；已有 X-UI 请在部署后把 DB 改绑到 Pages 当前使用的 D1。"
+      },
+      "PAGES_ORIGIN": {
+        "description": "X-UI Pages 的完整来源，例如 https://your-xui.pages.dev，末尾不要添加斜杠。"
+      }
+    }
+  }
+}

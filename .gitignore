@@ -1,0 +1,6 @@
+.wrangler/
+worker-configuration.d.ts
+realtime/node_modules/
+node_modules/
+__pycache__/
+*.pyc
