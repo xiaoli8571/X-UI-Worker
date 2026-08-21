@@ -422,6 +422,14 @@
                     </div>
                 </div>
 
+                <div class="flex items-center justify-between gap-4 mb-6">
+                    <div class="text-xs font-bold text-slate-400 tracking-wider">已纳管 {{ servers.length }} 台 VPS（默认收起，点击卡片标题展开/收起详情）</div>
+                    <div class="flex gap-2">
+                        <button @click="expandAllVps" class="text-xs font-bold bg-white/70 border border-slate-200 text-slate-600 px-4 py-2 rounded-xl hover:bg-white transition-all shadow-sm whitespace-nowrap">📂 全部展开</button>
+                        <button @click="collapseAllVps" class="text-xs font-bold bg-white/70 border border-slate-200 text-slate-600 px-4 py-2 rounded-xl hover:bg-white transition-all shadow-sm whitespace-nowrap">📁 全部收起</button>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
                     <div v-for="vps in servers" :key="vps.ip" class="bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white shadow-xl shadow-slate-200/40 flex flex-col overflow-hidden transition-all hover:shadow-2xl">
                         <div class="p-6 md:p-8 relative">
@@ -435,20 +443,21 @@
                                     <button @click="moveVps(vps.ip, -1)" title="上移" class="w-7 h-7 rounded-lg bg-white/70 border border-slate-200 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 font-bold transition-all">↑</button>
                                     <button @click="moveVps(vps.ip, 1)" title="下移" class="w-7 h-7 rounded-lg bg-white/70 border border-slate-200 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 font-bold transition-all">↓</button>
                                     <input :value="vpsSortDraft[vps.ip]" @change="setVpsPosition(vps.ip, $event.target.value)" type="number" min="1" :max="servers.length" placeholder="序号" class="w-14 h-7 bg-white/70 border border-slate-200 rounded-lg text-center text-xs font-bold text-slate-600 outline-none focus:border-indigo-300">
+                                    <button @click="toggleVpsCollapse(vps.ip)" :title="isVpsCollapsed(vps.ip) ? '展开详情' : '收起详情'" class="w-7 h-7 rounded-lg bg-white/70 border border-slate-200 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 font-bold transition-all">{{ isVpsCollapsed(vps.ip) ? '▾' : '▴' }}</button>
                                 </div>
                                 <button @click="deleteVps(vps.ip)" class="text-slate-300 hover:text-rose-500 font-bold transition-all">彻底移除</button>
                             </div>
-                            <div class="flex justify-between text-[10px] text-slate-400 font-mono font-black mb-4 px-1 uppercase tracking-wider"><span>UP: {{ vps.uptime || 'N/A' }}</span><span>LOAD: {{ vps.load || '0.00' }}</span></div>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
+                            <div v-show="!isVpsCollapsed(vps.ip)" class="flex justify-between text-[10px] text-slate-400 font-mono font-black mb-4 px-1 uppercase tracking-wider"><span>UP: {{ vps.uptime || 'N/A' }}</span><span>LOAD: {{ vps.load || '0.00' }}</span></div>
+                            <div v-show="!isVpsCollapsed(vps.ip)" class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
                                 <div class="bg-white/50 p-3 rounded-2xl border border-white shadow-sm flex flex-col justify-between"><div class="text-[9px] text-slate-400 font-bold tracking-wider mb-1">CPU</div><div class="font-black text-lg text-slate-700">{{ vps.cpu || 0 }}%</div><div class="w-full bg-slate-200/50 rounded-full h-1 mt-1 overflow-hidden"><div class="bg-indigo-400 h-1 rounded-full" :style="{ width: (vps.cpu || 0) + '%' }"></div></div></div>
                                 <div class="bg-white/50 p-3 rounded-2xl border border-white shadow-sm flex flex-col justify-between"><div class="text-[9px] text-slate-400 font-bold tracking-wider mb-1">MEM</div><div class="font-black text-lg text-slate-700">{{ vps.mem || 0 }}%</div><div class="w-full bg-slate-200/50 rounded-full h-1 mt-1 overflow-hidden"><div class="bg-purple-400 h-1 rounded-full" :style="{ width: (vps.mem || 0) + '%' }"></div></div></div>
                                 <div class="bg-white/50 p-3 rounded-2xl border border-white shadow-sm flex flex-col justify-between"><div class="text-[9px] text-slate-400 font-bold tracking-wider mb-1">DISK</div><div class="font-black text-lg text-slate-700">{{ vps.disk || 0 }}%</div><div class="w-full bg-slate-200/50 rounded-full h-1 mt-1 overflow-hidden"><div class="bg-emerald-400 h-1 rounded-full" :style="{ width: (vps.disk || 0) + '%' }"></div></div></div>
                                 <div class="bg-white/50 p-2 rounded-2xl border border-white shadow-sm flex flex-col justify-center text-center"><div class="text-[9px] text-slate-400 font-bold tracking-wider mb-1">SPEED</div><div class="text-[10px] font-black text-emerald-500 truncate">↓ {{ formatBytes(vps.net_in_speed || 0) }}/s</div><div class="text-[10px] font-black text-blue-500 truncate mt-0.5">↑ {{ formatBytes(vps.net_out_speed || 0) }}/s</div></div>
                             </div>
-                            <div class="bg-white/40 p-4 rounded-2xl border border-white"><div class="text-[10px] text-slate-400 font-bold tracking-wider mb-2">7-DAY TRAFFIC TREND</div><div :id="'chart-' + vps.ip" class="w-full h-32"></div></div>
+                            <div v-show="!isVpsCollapsed(vps.ip)" class="bg-white/40 p-4 rounded-2xl border border-white"><div class="text-[10px] text-slate-400 font-bold tracking-wider mb-2">7-DAY TRAFFIC TREND</div><div :id="'chart-' + vps.ip" class="w-full h-32"></div></div>
                         </div>
 
-                        <div class="px-6 md:px-8 pb-4">
+                        <div v-show="!isVpsCollapsed(vps.ip)" class="px-6 md:px-8 pb-4">
                             <div class="bg-indigo-50/70 border-2 border-dashed border-indigo-200 p-6 rounded-[1.5rem] mb-2 relative overflow-hidden group shadow-sm hover:border-indigo-300 transition-all">
                                 <div class="absolute top-0 right-0 bg-indigo-500 text-white text-[10px] font-black px-3 py-1 rounded-bl-xl shadow-sm">QUICK INSTALL</div>
                                 <h4 class="font-black text-indigo-800 text-lg mb-2 flex items-center gap-2">🚀 极速全量节点下发 (8合1)</h4>
@@ -532,7 +541,7 @@
 
                         </div>
 
-                        <div class="p-6 md:p-8 bg-slate-50/50 border-t border-white flex-1">
+                        <div v-show="!isVpsCollapsed(vps.ip)" class="p-6 md:p-8 bg-slate-50/50 border-t border-white flex-1">
                             <div v-for="node in getNodesByIp(vps.ip)" :key="node.id" class="bg-white/80 border border-white p-4 rounded-2xl mb-3 shadow-sm hover:shadow-md group transition-all">
                                 <div class="flex justify-between items-start mb-3">
                                     <div class="flex-1 overflow-hidden pr-2">
@@ -548,7 +557,7 @@
                             <div v-if="getNodesByIp(vps.ip).length === 0" class="text-center text-slate-400 text-xs py-6 border-2 border-dashed border-slate-200 rounded-2xl font-medium">节点矩阵为空，请在上方一键下发建立</div>
                         </div>
 
-                        <div class="p-4 md:p-6 bg-slate-100/50 border-t border-white flex flex-col gap-3">
+                        <div v-show="!isVpsCollapsed(vps.ip)" class="p-4 md:p-6 bg-slate-100/50 border-t border-white flex flex-col gap-3">
                             <div class="bg-slate-800 p-4 rounded-[1.25rem] group shadow-inner transition-colors">
                                 <div class="text-[10px] text-slate-400 font-bold uppercase mb-2 flex justify-between items-center">
                                     <span>Full Deploy Command · X-UI + 住宅双隧道</span>
@@ -1486,6 +1495,7 @@ body.theme11 #app, body.theme13 #app, body.theme14 #app, body.theme15 #app, body
                 const renderXUICharts = async () => {
                     await nextTick();
                     for (let vps of servers.value) {
+                        if (isVpsCollapsed(vps.ip)) continue;
                         const chartDom = document.getElementById('chart-' + vps.ip); if (!chartDom) continue;
                         let myChart = echarts.getInstanceByDom(chartDom) || echarts.init(chartDom);
                         const res = await fetchApi(`/api/stats?ip=${vps.ip}`); const stats = await res.json();
@@ -1506,6 +1516,11 @@ body.theme11 #app, body.theme13 #app, body.theme14 #app, body.theme15 #app, body
                 const addVps = async () => { if(!newVps.value.ip || !newVps.value.name) return alert('请输入名称和IP'); deployOsMap[newVps.value.ip] = newVps.value.os; saveOsMap(); await fetchApi('/api/vps', { method: 'POST', body: JSON.stringify({ ip: newVps.value.ip, name: newVps.value.name }) }); newVps.value = { name: '', ip: '', os: 'debian' }; refreshData(); fetchProbeData();};
                 const deleteVps = async (ip) => { if(confirm('🧨 确定移除该机器？该机器相关的探针数据、节点数据将被完全清空！')) { await fetchApi(`/api/vps?ip=${ip}`, { method: 'DELETE' }); refreshData(); fetchProbeData();} };
                 const vpsSortDraft = reactive({});
+                const vpsCollapsed = reactive({});
+                const isVpsCollapsed = ip => vpsCollapsed[ip] !== false;
+                const toggleVpsCollapse = async (ip) => { vpsCollapsed[ip] = vpsCollapsed[ip] === false ? true : false; await nextTick(); if (!isVpsCollapsed(ip)) renderXUICharts(); };
+                const expandAllVps = async () => { servers.value.forEach(s => { vpsCollapsed[s.ip] = false; }); await nextTick(); renderXUICharts(); };
+                const collapseAllVps = () => { servers.value.forEach(s => { vpsCollapsed[s.ip] = true; }); };
                 const getVpsIndex = (ip) => { const idx = servers.value.findIndex(s => s.ip === ip); return idx >= 0 ? idx + 1 : 0; };
                 const moveVps = async (ip, dir) => {
                     const list = servers.value.map(s => s.ip);
@@ -1982,7 +1997,7 @@ body.theme11 #app, body.theme13 #app, body.theme14 #app, body.theme15 #app, body
                     isLoggedIn, showLoginModal, loginUser, password, currentUser, role, activeTab, 
                     servers, nodes, users, groups, newVps, newNodeParams, newUser, newGroupName,
                     login, logout, refreshData, addUser, toggleUser, deleteUser, resetUserTraffic, addGroup, saveGroup, deleteGroup, groupDraft, addVps, deleteVps, addNode, deleteNode, toggleNode, resetTraffic,
-                    getNodesByIp, getVpsName, formatBytes, formatDate, getExpireText, getTrafficPercent, getPingColor, isOnline, generateCmd, generateProbeCmd, generateSubLink, copyCommand, getVpsIndex, vpsSortDraft, moveVps, setVpsPosition, moveNode,
+                    getNodesByIp, getVpsName, formatBytes, formatDate, getExpireText, getTrafficPercent, getPingColor, isOnline, generateCmd, generateProbeCmd, generateSubLink, copyCommand, getVpsIndex, vpsSortDraft, moveVps, setVpsPosition, moveNode, vpsCollapsed, isVpsCollapsed, toggleVpsCollapse, expandAllVps, collapseAllVps,
                     globalOnline, globalTraffic, globalSpeedIn, globalSpeedOut, deployOsMap, saveOsMap, siteTitle, siteTitleInput, saveSiteTitle, userNewPassword, updateUserPassword, resetMySubLink, generateUUIDForNewUser, batchStartPort, batchUser, deployAllProtocols,
                     probeSys, publicProbeServers, filteredProbeServers, probeView, probeDetailId, probeDetail, setProbeView, openProbeDetail, probeGlobalOnline, probeGlobalOffline, probeGlobalSpeedIn, probeGlobalSpeedOut, probeGlobalNetRx, probeGlobalNetTx, filteredProbeGroups, probeCountryStats, currentFilter,
                     saveProbeSettings, saveSubscriptionProtection, adminProbeServers, probeEditModalOpen, editingProbeNode, openProbeEditModal, saveProbeEdit, deleteProbeNode, currentDomain,
