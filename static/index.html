@@ -568,7 +568,10 @@
                             <div class="flex gap-2 mt-1">
                                 <button @click="exportNodes" class="flex-1 text-center bg-white border border-slate-200 text-slate-600 px-3 py-2.5 rounded-xl font-bold hover:bg-white transition-all shadow-sm text-xs whitespace-nowrap">📤 导出节点</button>
                                 <button @click="importNodesPick" class="flex-1 text-center bg-white border border-slate-200 text-slate-600 px-3 py-2.5 rounded-xl font-bold hover:bg-white transition-all shadow-sm text-xs whitespace-nowrap">📥 导入节点</button>
+                                <button @click="exportVps" class="flex-1 text-center bg-white border border-slate-200 text-slate-600 px-3 py-2.5 rounded-xl font-bold hover:bg-white transition-all shadow-sm text-xs whitespace-nowrap">📤 导出VPS</button>
+                                <button @click="importVpsPick" class="flex-1 text-center bg-white border border-slate-200 text-slate-600 px-3 py-2.5 rounded-xl font-bold hover:bg-white transition-all shadow-sm text-xs whitespace-nowrap">📥 导入VPS</button>
                                 <input ref="nodeImportFile" type="file" accept=".json,application/json" class="hidden" @change="importNodesFile($event)">
+                                <input ref="vpsImportFile" type="file" accept=".json,application/json" class="hidden" @change="importVpsFile($event)">
                             </div>
                         </div>
                     </div>
@@ -1696,6 +1699,42 @@ body.theme11 #app, body.theme13 #app, body.theme14 #app, body.theme15 #app, body
                     } catch (e) { alert('导入失败: ' + (e && e.message || e)); }
                 };
                 
+                const exportVps = async () => {
+                    try {
+                        const res = await fetchApi('/api/vps/export', { method: 'GET' });
+                        const data = await res.json();
+                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `xui-vps-${new Date().toISOString().slice(0, 10)}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 100);
+                        alert(`✅ 已导出 ${(data.vps || []).length} 台 VPS`);
+                    } catch (e) { alert('导出失败: ' + (e && e.message || e)); }
+                };
+                const importVpsPick = () => { vpsImportFile.value?.click(); };
+                const importVpsFile = async (event) => {
+                    const file = event.target.files && event.target.files[0];
+                    event.target.value = '';
+                    if (!file) return;
+                    try {
+                        const text = await file.text();
+                        let parsed;
+                        try { parsed = JSON.parse(text); }
+                        catch (e) { parsed = JSON.parse(text.replace(/,\s*([}\]])/g, '$1')); }
+                        if (Array.isArray(parsed) && parsed[0] && parsed[0].vps) parsed = parsed[0].vps;
+                        if (!Array.isArray(parsed)) parsed = parsed && parsed.vps;
+                        if (!parsed || !parsed.length) return alert('文件中没有可导入的 VPS 记录');
+                        const res = await fetchApi('/api/vps/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parsed) });
+                        const r = await res.json();
+                        if (!r.success) throw new Error(r.error || '导入失败');
+                        alert(`✅ 导入完成：成功 ${r.imported} 个，跳过 ${r.skipped ?? 0} 个（重复/无效）`);
+                        refreshData();
+                    } catch (e) { alert('导入失败: ' + (e && e.message || e)); }
+                };
+                
                 const loadThirdPartySubscriptions = async () => {
                     try {
                         const res = await fetchApi('/api/thirdparty');
@@ -1923,7 +1962,7 @@ body.theme11 #app, body.theme13 #app, body.theme14 #app, body.theme15 #app, body
                     globalOnline, globalTraffic, globalSpeedIn, globalSpeedOut, deployOsMap, saveOsMap, siteTitle, siteTitleInput, saveSiteTitle, userNewPassword, updateUserPassword, resetMySubLink, generateUUIDForNewUser, batchStartPort, batchUser, deployAllProtocols,
                     probeSys, publicProbeServers, filteredProbeServers, probeView, probeDetailId, probeDetail, setProbeView, openProbeDetail, probeGlobalOnline, probeGlobalOffline, probeGlobalSpeedIn, probeGlobalSpeedOut, probeGlobalNetRx, probeGlobalNetTx, filteredProbeGroups, probeCountryStats, currentFilter,
                     saveProbeSettings, saveSubscriptionProtection, adminProbeServers, probeEditModalOpen, editingProbeNode, openProbeEditModal, saveProbeEdit, deleteProbeNode, currentDomain,
-                    nodeEditModalOpen, editingNode, editNode, saveNodeEdit, exportNodes, importNodesPick, importNodesFile, nodeImportFile,
+                    nodeEditModalOpen, editingNode, editNode, saveNodeEdit, exportNodes, importNodesPick, importNodesFile, nodeImportFile, exportVps, importVpsPick, importVpsFile, vpsImportFile,
                     thirdPartySubscriptions, newThirdParty, loadingThirdParty, loadThirdPartySubscriptions, addThirdPartySubscription, toggleThirdPartySubscription, deleteThirdPartySubscription, newSingleNode, loadingSingleNode, addSingleNode,
                     qrModalOpen, qrCodeImage, showQrCode, 
                     showWelcomePopup, closePopup,

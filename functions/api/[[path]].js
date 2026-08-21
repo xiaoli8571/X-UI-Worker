@@ -1677,6 +1677,40 @@ rules:
         
         if (action === "vps" && isAdmin) {
             await ensureDbSchema(db);
+            if (method === "GET" && params.path[1] === "export") {
+                const { results } = await db.prepare("SELECT ip, name, agent_token, sort_order, egress_mode, proxy_mode, proxy_categories, socks5_addr, socks5_port, socks5_user, socks5_pass FROM servers ORDER BY sort_order, name").all();
+                const stamp = new Date().toISOString().slice(0, 10);
+                return Response.json({ vps: results || [] }, { headers: { "Content-Disposition": `attachment; filename="xui-vps-${stamp}.json"`, "Cache-Control": "no-store" } });
+            }
+            if (method === "POST" && params.path[1] === "import") {
+                let list;
+                try {
+                    const raw = await request.text();
+                    try { list = JSON.parse(raw); }
+                    catch (e) { list = JSON.parse(raw.replace(/,\s*([}\]])/g, '$1')); }
+                } catch (e) { return Response.json({ error: 'Invalid JSON body' }, { status: 400 }); }
+                if (Array.isArray(list) && list[0] && list[0].vps) list = list[0].vps;
+                if (!Array.isArray(list)) {
+                    if (list && Array.isArray(list.vps)) list = list.vps;
+                    else return Response.json({ error: '导入内容需为 {vps: [...]} 或 VPS 数组' }, { status: 400 });
+                }
+                if (list.length > 100) return Response.json({ error: '单次最多导入 100 台 VPS' }, { status: 400 });
+                const existing = new Set((await db.prepare("SELECT ip FROM servers").all()).results.map(r => r.ip));
+                const statements = [];
+                let imported = 0;
+                for (const item of list) {
+                    const ip = String(item && item.ip || '').trim();
+                    if (!/^[0-9A-Fa-f:.]{2,64}$/.test(ip) || existing.has(ip)) continue;
+                    existing.add(ip);
+                    const name = String(item.name || ip).slice(0, 100);
+                    const agentToken = String(item.agent_token || crypto.randomUUID()).slice(0, 64);
+                    const sortOrder = Number(item.sort_order) || 0;
+                    statements.push(db.prepare(`INSERT INTO servers (ip, name, agent_token, sort_order) VALUES (?, ?, ?, ?)`).bind(ip, name, agentToken, sortOrder));
+                    imported++;
+                }
+                if (statements.length) await chunkBatch(db, statements);
+                return Response.json({ success: true, imported, total: list.length, skipped: list.length - imported });
+            }
             if (method === "POST") { const { ip, name } = await request.json(); if (!/^[0-9A-Fa-f:.]{2,64}$/.test(String(ip || ''))) return Response.json({ error: 'Invalid VPS IP' }, { status: 400 }); const agentToken = crypto.randomUUID(); const inserted = await db.prepare("INSERT INTO servers (ip, name, alert_sent, agent_token) SELECT ?, ?, 0, ? WHERE (SELECT COUNT(*) FROM servers) < 100 ON CONFLICT(ip) DO NOTHING RETURNING ip").bind(ip, String(name || ip).slice(0, 100), agentToken).first(); if (!inserted) { if (await db.prepare('SELECT ip FROM servers WHERE ip = ?').bind(ip).first()) return Response.json({ error: 'VPS already exists' }, { status: 409 }); return Response.json({ error: "当前版本最多管理 100 台 VPS" }, { status: 409 }); } return Response.json({ success: true }); }
             if (method === "PUT") { const data = await request.json(); const ip = data.ip; if (!ip) return Response.json({ error: 'IP required' }, { status: 400 }); if (data.reorder) {
                 const list = (await db.prepare("SELECT ip FROM servers ORDER BY sort_order, name").all()).results.map(r => r.ip);
