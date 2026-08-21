@@ -1343,7 +1343,7 @@ export async function onRequest(context) {
 
         for (let node of results) {
             const vpsInfo = await db.prepare("SELECT name FROM servers WHERE ip = ?").bind(node.vps_ip).first(); 
-            const rawRemark = node.name || `${vpsInfo ? vpsInfo.name : 'x-UI'} | ${node.protocol}_${node.port}`; 
+            const rawRemark = node.name || `${vpsInfo ? vpsInfo.name : 'x-UI'}-${node.protocol}`; 
             const remark = encodeURIComponent(rawRemark); 
             let link = "";
             let cProxy = "";
