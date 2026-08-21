@@ -1303,6 +1303,8 @@ export async function onRequest(context) {
         const token = urlObj.searchParams.get("token"); 
         const format = urlObj.searchParams.get("format"); 
         const adminUser = env.ADMIN_USERNAME || "admin";
+        const ua = String(request.headers.get("User-Agent") || "").toLowerCase();
+        const wantsClash = format === 'clash' || (!format && /clash|mihomo|stash|clashx|clashforwindows|clash-verge|cfw|karing|v2rayse|flclash/.test(ua));
 
         let isValid = false;
         if (reqUser === adminUser) { 
@@ -1365,7 +1367,7 @@ export async function onRequest(context) {
             if (link) subLinks.push(link);
 
             // --- 动态拼装 Clash YAML 代理字典 (支持 Clash Meta / Mihomo) ---
-            if (format === 'clash') {
+            if (wantsClash) {
                 if (node.protocol.includes("VLESS") || node.protocol.includes("Reality")) {
                     const serverIpOrSni = (node.protocol === 'VLESS-Argo' && !(node.sni || '').includes('等待')) ? node.sni : nodeIp;
                     const serverPort = node.protocol === 'VLESS-Argo' ? 443 : node.port;
@@ -1434,7 +1436,7 @@ export async function onRequest(context) {
                 }
                 if (link) subLinks.push(link);
 
-                if (format === 'clash') {
+                if (wantsClash) {
                     let cProxy = "";
                     if (node.protocol === "VMess") {
                         cProxy = `  - name: ${yamlString(node.name || 'TP')}\n    type: vmess\n    server: ${yamlString(thirdIp)}\n    port: ${node.port}\n    uuid: ${yamlString(node.uuid)}\n    alterId: 0\n    cipher: auto\n    udp: true${node.network && node.network !== 'tcp' ? `\n    network: ${yamlString(node.network)}${node.host ? `\n    ws-headers:\n      Host: ${yamlString(node.host)}` : ''}${node.path ? `\n    ws-path: ${yamlString(node.path)}` : ''}` : ''}`;
@@ -1502,7 +1504,7 @@ export async function onRequest(context) {
                     const name = `住宅 SOCKS5 | ${active.country || 'AUTO'} | ${server.ip}:${port}`;
                     const encodedCredentials = btoa(unescape(encodeURIComponent(`${env.PROXY_USER}:${env.PROXY_PASS}`)));
                     subLinks.push(`socks5://${encodedCredentials}@${serverIp}:${port}#${encodeURIComponent(name)}`);
-                    if (format === 'clash') {
+                    if (wantsClash) {
                         clashProxies.push(`  - name: ${yamlString(name)}\n    type: socks5\n    server: ${yamlString(serverIp)}\n    port: ${port}\n    username: ${yamlString(env.PROXY_USER)}\n    password: ${yamlString(env.PROXY_PASS)}\n    udp: true`);
                         proxyNames.push(yamlString(name));
                     }
@@ -1513,7 +1515,7 @@ export async function onRequest(context) {
         }
 
         // --- 若为 Clash 格式，渲染 YAML 返回 ---
-        if (format === 'clash') {
+        if (wantsClash) {
             const proxyGroupList = proxyNames.length > 0 ? proxyNames.map(n => `      - ${n}`).join('\n') : '      - DIRECT';
             const hasIPv6 = results.some(n => /:/.test(n.vps_ip)) || clashProxies.some(p => /server:\s*["']?\[/.test(p));
             const clashYaml = `port: 7890
