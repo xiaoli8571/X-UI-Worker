@@ -880,6 +880,51 @@
                     </div>
 
                     <div class="bg-white/60 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white shadow-xl shadow-slate-200/40">
+                        <h3 class="text-xl font-black text-slate-800 mb-2 flex items-center justify-between">
+                            <div class="flex items-center gap-2">🌐 CF 额度使用统计</div>
+                            <button @click="loadCfQuota" class="bg-indigo-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-sm text-xs">🔄 重新估算</button>
+                        </h3>
+                        <p class="text-xs text-slate-500 mb-5 font-medium">按 Cloudflare 免费版额度上限与当前上报频率估算每日消耗。实际以 Cloudflare Dashboard 的用量为准。</p>
+                        <div v-if="cfQuota" class="space-y-5">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div class="bg-white/50 p-4 rounded-2xl border border-white shadow-sm"><div class="text-[10px] text-slate-400 font-bold tracking-wider mb-1">已纳管服务器</div><div class="text-2xl font-black text-slate-700">{{ cfQuota.server_count }}</div></div>
+                                <div class="bg-white/50 p-4 rounded-2xl border border-white shadow-sm"><div class="text-[10px] text-slate-400 font-bold tracking-wider mb-1">客户端上报间隔</div><div class="text-2xl font-black text-slate-700">{{ cfQuota.report_interval }}<span class="text-xs font-bold text-slate-400 ml-1">秒</span></div></div>
+                                <div class="bg-white/50 p-4 rounded-2xl border border-white shadow-sm"><div class="text-[10px] text-slate-400 font-bold tracking-wider mb-1">面板活跃时上报</div><div class="text-2xl font-black text-emerald-600">{{ cfQuota.effective_interval_fast }}<span class="text-xs font-bold text-slate-400 ml-1">秒/次</span></div></div>
+                                <div class="bg-white/50 p-4 rounded-2xl border border-white shadow-sm"><div class="text-[10px] text-slate-400 font-bold tracking-wider mb-1">空闲时上报</div><div class="text-2xl font-black text-blue-600">{{ cfQuota.effective_interval_idle }}<span class="text-xs font-bold text-slate-400 ml-1">秒/次</span></div></div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs font-black text-slate-600 mb-1"><span>📡 Worker 请求数</span><span>{{ cfQuota.quotas.requests.usage_fast }} / {{ cfQuota.quotas.requests.limit }} 次/天（{{ cfQuota.quotas.requests.pct_fast }}%）</span></div>
+                                <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden shadow-inner"><div class="h-2.5 rounded-full transition-all duration-500" :class="cfQuota.quotas.requests.pct_fast > 60 ? 'bg-rose-500' : (cfQuota.quotas.requests.pct_fast > 30 ? 'bg-amber-500' : 'bg-emerald-500')" :style="{ width: cfQuota.quotas.requests.pct_fast + '%' }"></div></div>
+                                <p class="text-[10px] text-slate-400 mt-1 font-medium">面板关闭时约 {{ cfQuota.quotas.requests.usage_idle }} 次/天</p>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs font-black text-slate-600 mb-1"><span>🗄️ D1 写入</span><span>{{ cfQuota.quotas.writes.usage_fast }} / {{ cfQuota.quotas.writes.limit }} 行/天（{{ cfQuota.quotas.writes.pct_fast }}%）</span></div>
+                                <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden shadow-inner"><div class="h-2.5 rounded-full transition-all duration-500" :class="cfQuota.quotas.writes.pct_fast > 60 ? 'bg-rose-500' : (cfQuota.quotas.writes.pct_fast > 30 ? 'bg-amber-500' : 'bg-emerald-500')" :style="{ width: cfQuota.quotas.writes.pct_fast + '%' }"></div></div>
+                                <p class="text-[10px] text-slate-400 mt-1 font-medium">面板关闭时约 {{ cfQuota.quotas.writes.usage_idle }} 行/天</p>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs font-black text-slate-600 mb-1"><span>📖 D1 读取</span><span>{{ cfQuota.quotas.reads.usage_fast }} / {{ cfQuota.quotas.reads.limit }} 行/天（{{ cfQuota.quotas.reads.pct_fast }}%）</span></div>
+                                <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden shadow-inner"><div class="h-2.5 rounded-full transition-all duration-500" :class="cfQuota.quotas.reads.pct_fast > 60 ? 'bg-rose-500' : (cfQuota.quotas.reads.pct_fast > 30 ? 'bg-amber-500' : 'bg-emerald-500')" :style="{ width: cfQuota.quotas.reads.pct_fast + '%' }"></div></div>
+                                <p class="text-[10px] text-slate-400 mt-1 font-medium">面板关闭时约 {{ cfQuota.quotas.reads.usage_idle }} 行/天</p>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs font-black text-slate-600 mb-1"><span>⏰ Cron 离线检测</span><span>{{ cfQuota.quotas.crons.usage }} / {{ cfQuota.quotas.crons.limit }} 次/天（{{ cfQuota.quotas.crons.pct }}%）</span></div>
+                                <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden shadow-inner"><div class="h-2.5 rounded-full transition-all duration-500 bg-emerald-500" :style="{ width: Math.max(1, cfQuota.quotas.crons.pct) + '%' }"></div></div>
+                            </div>
+
+                            <div class="bg-amber-50/70 border border-amber-100 p-4 rounded-2xl">
+                                <div class="text-xs font-black text-amber-700 mb-2">⚡ 实时消耗（当前 {{ cfQuota.fast_mode ? '面板活跃' : '面板空闲' }}）</div>
+                                <div class="text-[11px] text-amber-700 font-medium leading-relaxed">每分钟约 <b>{{ cfQuota.current.per_minute_requests }}</b> 次请求、<b>{{ cfQuota.current.per_minute_writes }}</b> 次 D1 写入。若担心额度，可在上方将「探针客户端上报间隔」调大。</div>
+                            </div>
+                        </div>
+                        <div v-else class="text-center text-slate-400 text-sm py-8 font-medium">加载中…</div>
+                    </div>
+
+                    <div class="bg-white/60 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white shadow-xl shadow-slate-200/40">
                         <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center justify-between">
                             <div class="flex items-center gap-2">📊 探针大盘外观与设置</div>
                             <button @click="pullGithubNodes" class="text-xs bg-emerald-100 text-emerald-600 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 transition-colors shadow-sm">🔄 云端拉取最新主题/测速库</button>
@@ -1079,6 +1124,8 @@
                 let publicRealtimeSocket = null; let publicRealtimeReconnectTimer = null; let publicRealtimeFallbackTimer = null; let publicRealtimeConnectTimer = null; let publicRealtimeActivityTimer = null; let publicRealtimeDisconnectedAt = 0; let publicRealtimeRetryDelay = 10000;
                 const newVps = ref({ name: '', ip: '', os: 'debian' }); const newNodeParams = reactive({}); const newUser = reactive({ username: '', password: '', traffic_limit_gb: '', expire_date: '' }); const newGroupName = ref(''); const groupDrafts = reactive({});
                 const mySubToken = ref(''); const siteTitle = ref(''); const siteTitleInput = ref(''); const userNewPassword = ref('');
+                const cfQuota = ref(null);
+                const loadCfQuota = async () => { try { const res = await fetchApi('/api/cf_quota'); cfQuota.value = await res.json(); } catch(e) { cfQuota.value = null; } };
                 const batchStartPort = reactive({}); const batchUser = reactive({}); 
                 const thirdPartySubscriptions = ref([]); const newThirdParty = reactive({ name: '', url: '' }); const loadingThirdParty = ref(false);
                 const newSingleNode = reactive({ name: '', link: '' }); const loadingSingleNode = ref(false);
@@ -1116,7 +1163,7 @@
                 
                 const showWelcomePopup = ref(false);
 
-                watch(activeTab, (val) => { localStorage.setItem('monitor_preferred_tab', val); if (val === 'proxy' && isLoggedIn.value) { loadProxyPool(); setTimeout(pcInitProxy, 0); } else { pcStopProxy(); } if (val === 'thirdparty') loadThirdPartySubscriptions(); if (val === 'settings' && isLoggedIn.value && role.value === 'admin') loadAdminProbeServers(); if (val === 'probe') { updateCustomStyles(); updateCustomScript(probeSys.custom_script); } else { document.body.className = ''; document.getElementById('xui-custom-styles')?.remove(); document.getElementById('xui-custom-head')?.remove(); updateCustomScript(''); } });
+                watch(activeTab, (val) => { localStorage.setItem('monitor_preferred_tab', val); if (val === 'proxy' && isLoggedIn.value) { loadProxyPool(); setTimeout(pcInitProxy, 0); } else { pcStopProxy(); } if (val === 'thirdparty') loadThirdPartySubscriptions(); if (val === 'settings' && isLoggedIn.value && role.value === 'admin') { loadAdminProbeServers(); loadCfQuota(); } if (val === 'probe') { updateCustomStyles(); updateCustomScript(probeSys.custom_script); } else { document.body.className = ''; document.getElementById('xui-custom-styles')?.remove(); document.getElementById('xui-custom-head')?.remove(); updateCustomScript(''); } });
                 watch(probeView, (val) => localStorage.setItem('monitor_preferred_view', val));
 
                 const hasCustomCssFlag = computed(() => {
@@ -1476,7 +1523,7 @@ body.theme11 #app, body.theme13 #app, body.theme14 #app, body.theme15 #app, body
                     
                     if (activeTab.value === 'thirdparty') loadThirdPartySubscriptions();
                     
-                    if (activeTab.value === 'settings' && role.value === 'admin') loadAdminProbeServers();
+                    if (activeTab.value === 'settings' && role.value === 'admin') { loadAdminProbeServers(); loadCfQuota(); }
                     } catch(e) {} finally { isFetchingXUI = false; }
                 };
 
@@ -1986,7 +2033,7 @@ body.theme11 #app, body.theme13 #app, body.theme14 #app, body.theme15 #app, body
                     servers, nodes, users, groups, newVps, newNodeParams, newUser, newGroupName,
                     login, logout, refreshData, addUser, toggleUser, deleteUser, resetUserTraffic, addGroup, saveGroup, deleteGroup, groupDraft, addVps, deleteVps, addNode, deleteNode, toggleNode, resetTraffic,
                     getNodesByIp, getVpsName, formatBytes, formatDate, getExpireText, getTrafficPercent, getPingColor, isOnline, generateCmd, generateProbeCmd, generateSubLink, copyCommand, getVpsIndex, vpsSortDraft, moveVps, setVpsPosition, moveNode, vpsCollapsed, isVpsCollapsed, toggleVpsCollapse, expandAllVps, collapseAllVps,
-                    globalOnline, globalTraffic, globalSpeedIn, globalSpeedOut, hasResidentialVps, deployOsMap, saveOsMap, siteTitle, siteTitleInput, saveSiteTitle, userNewPassword, updateUserPassword, resetMySubLink, generateUUIDForNewUser, batchStartPort, batchUser, deployAllProtocols,
+                    globalOnline, globalTraffic, globalSpeedIn, globalSpeedOut, hasResidentialVps, deployOsMap, saveOsMap, cfQuota, loadCfQuota, siteTitle, siteTitleInput, saveSiteTitle, userNewPassword, updateUserPassword, resetMySubLink, generateUUIDForNewUser, batchStartPort, batchUser, deployAllProtocols,
                     probeSys, publicProbeServers, filteredProbeServers, probeView, probeDetailId, probeDetail, setProbeView, openProbeDetail, probeGlobalOnline, probeGlobalOffline, probeGlobalSpeedIn, probeGlobalSpeedOut, probeGlobalNetRx, probeGlobalNetTx, filteredProbeGroups, probeCountryStats, currentFilter,
                     saveProbeSettings, saveSubscriptionProtection, adminProbeServers, probeEditModalOpen, editingProbeNode, openProbeEditModal, saveProbeEdit, deleteProbeNode, currentDomain,
                     nodeEditModalOpen, editingNode, editNode, saveNodeEdit, exportNodes, importNodesPick, importNodesFile, nodeImportFile, exportVps, importVpsFile, vpsImportFile,

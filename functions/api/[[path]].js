@@ -1589,6 +1589,53 @@ rules:
     if (!currentUser) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     try {
+        if (action === "cf_quota" && isAdmin) {
+            const serverCount = ((await db.prepare("SELECT COUNT(*) AS c FROM servers").first())?.c) || 0;
+            let reportInterval = 5;
+            try { const r = await db.prepare("SELECT value FROM probe_settings WHERE key = 'report_interval'").first(); if (r) reportInterval = parseInt(r.value) || 5; } catch(e){}
+            let adminFreq = 15, publicFreq = 20, idleFreq = 60;
+            try { const { results } = await db.prepare("SELECT key, value FROM probe_settings WHERE key IN ('realtime_admin_interval', 'realtime_public_interval', 'realtime_idle_interval')").all(); (results || []).forEach(r => { if (r.key === 'realtime_admin_interval') adminFreq = parseInt(r.value) || 15; if (r.key === 'realtime_public_interval') publicFreq = parseInt(r.value) || 20; if (r.key === 'realtime_idle_interval') idleFreq = parseInt(r.value) || 60; }); } catch(e){}
+            const fastInterval = Math.min(300, Math.max(15, reportInterval));
+            const idleInterval = Math.min(300, Math.max(90, reportInterval));
+            const nowMs = Date.now();
+            let fastMode = false;
+            try { const uiActive = await db.prepare("SELECT ts FROM sys_config WHERE key = 'ui_active'").first(); if (uiActive && (nowMs - uiActive.ts < 90000)) fastMode = true; } catch(e){}
+            const reportPerDayFast = serverCount * (86400 / fastInterval);
+            const reportPerDayIdle = serverCount * (86400 / idleInterval);
+            const cronsPerDay = 96;
+            const requestsFast = reportPerDayFast + cronsPerDay;
+            const requestsIdle = reportPerDayIdle + cronsPerDay;
+            const writesPerReport = 6;
+            const readsPerReport = 4;
+            const writesFast = reportPerDayFast * writesPerReport;
+            const writesIdle = reportPerDayIdle * writesPerReport;
+            const readsFast = reportPerDayFast * readsPerReport;
+            const readsIdle = reportPerDayIdle * readsPerReport;
+            const d1RowsPerBroadcast = serverCount * 2;
+            const broadcastPerDayFast = 86400 / (adminFreq * 1000);
+            const broadcastPerDayIdle = 86400 / (idleFreq * 1000);
+            const readsBroadcastFast = broadcastPerDayFast * d1RowsPerBroadcast;
+            const readsBroadcastIdle = broadcastPerDayIdle * d1RowsPerBroadcast;
+            const perMinuteRequests = (serverCount / fastInterval) + 1;
+            const perMinuteWrites = (serverCount / fastInterval) * writesPerReport;
+            return Response.json({
+                generated_at: nowMs,
+                fast_mode: fastMode,
+                server_count: serverCount,
+                report_interval: reportInterval,
+                effective_interval_fast: fastInterval,
+                effective_interval_idle: idleInterval,
+                realtime: { admin: adminFreq, public: publicFreq, idle: idleFreq },
+                quotas: {
+                    requests: { limit: 100000, usage_fast: Math.round(requestsFast), usage_idle: Math.round(requestsIdle), pct_fast: Math.min(100, Math.round(requestsFast / 100000 * 100)), pct_idle: Math.min(100, Math.round(requestsIdle / 100000 * 100)) },
+                    writes: { limit: 100000, usage_fast: Math.round(writesFast), usage_idle: Math.round(writesIdle), pct_fast: Math.min(100, Math.round(writesFast / 100000 * 100)), pct_idle: Math.min(100, Math.round(writesIdle / 100000 * 100)) },
+                    reads: { limit: 5000000, usage_fast: Math.round(readsFast + readsBroadcastFast), usage_idle: Math.round(readsIdle + readsBroadcastIdle), pct_fast: Math.min(100, Math.round((readsFast + readsBroadcastFast) / 5000000 * 100)), pct_idle: Math.min(100, Math.round((readsIdle + readsBroadcastIdle) / 5000000 * 100)) },
+                    crons: { limit: 100000, usage: cronsPerDay, pct: Math.min(100, Math.round(cronsPerDay / 100000 * 100)) },
+                },
+                current: { per_minute_requests: Math.round(perMinuteRequests), per_minute_writes: Math.round(perMinuteWrites) },
+            });
+        }
+
         if (action === "data") {
             const servers = isAdmin
                 ? (await db.prepare("SELECT * FROM servers ORDER BY sort_order, name").all()).results
